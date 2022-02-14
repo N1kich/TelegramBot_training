@@ -10,6 +10,7 @@ using System.IO;
 using System.Collections.Generic;
 using Telegram.Bot.Types.ReplyMarkups;
 using Telegram.Bot.Types.InputFiles;
+using Telegram.Bot.Args;
 
 namespace Telegram_Bot
 {
@@ -30,7 +31,7 @@ namespace Telegram_Bot
         static async Task Main(string[] args)
         {
             //bot token
-            string botToken = "your bot token";
+            string botToken = "5201175628:AAFyU015A0b4bF97uDT7W_GG2RGMPSElKns";
 
             //absolute path || relative path
             
@@ -43,85 +44,117 @@ namespace Telegram_Bot
             
             // initialize and set base settings for bot from manual
             var telegramBot = new TelegramBotClient(botToken);
-            using var cts = new CancellationTokenSource();
-
-            // StartReceiving does not block the caller thread. Receiving is done on the ThreadPool.
-            var receiverOptions = new ReceiverOptions
-            {
-                AllowedUpdates = { } // receive all update types
-            };
-
+            
             //set up dictionaries once. emojis and markUpKeyboard
             Dictionary<string, string> emojis = SetEmojis();
             Dictionary<string, ReplyKeyboardMarkup> keyboards = SetBotKeyboardButtons();
 
-            telegramBot.StartReceiving(
-                HandleUpdateAsync,
-                HandleErrorAsync,
-                receiverOptions,
-                cancellationToken: cts.Token);
+            // runs the bot
+            telegramBot.StartReceiving();
 
+            // handle updates
+            telegramBot.OnUpdate += UpdateHandler;
             //get response from bot
             var me = await telegramBot.GetMeAsync();
-
+            
             Console.WriteLine($"Start listening for @{me.Username}");
             Console.ReadLine();
 
-            // Send cancellation request to stop bot
-            cts.Cancel();
-            
+            telegramBot.StopReceiving();
+            #region 17ver Handlers
+            //telegramBot.StartReceiving(
+            //    //HandleUpdateAsync,
+            //    //HandleErrorAsync,
+            //    await updates,
+            //    cancellationToken: cts.Token);
+            //async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
+            //{
 
-            async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
+            //    //if update type is message, then work with message data
+            //    if (update.Type == UpdateType.Message)
+            //    {
+            //        // if message is a text, handle it
+            //        if (update.Message.Type == MessageType.Text)
+            //        {
+            //            //just cosmetic output to console
+            //            var chatId = update.Message.Chat.Id;
+            //            var messageText = update.Message.Text;
+            //            Console.WriteLine($"Received a '{messageText}' message in chat {chatId}. By {update.Message.From.Username}");
+
+            //            //define if text message is a command
+            //            await TextOptionsAsync(botClient, update, cancellationToken);
+            //        }
+            //        else
+            //        {
+            //            //if message type != text, try to donwload it
+            //            await FileDownloaderHandlerAsync(botClient, update, cancellationToken, path, emojis, IsMenuButtonSelected);
+            //        }
+
+            //    }
+            //    //if update type is CallbackQuery 
+            //    if (update.Type == UpdateType.CallbackQuery)
+            //    {
+            //        //define CallBackData 
+            //        string fileToUpload = update.CallbackQuery.Data;
+            //        Console.WriteLine(fileToUpload);
+
+            //        //upload files based on CallBack Data
+            //        await UploadChoosenFileAsync(fileToUpload, path, (TelegramBotClient)botClient, update);
+            //    }
+            //}
+
+            //Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
+            //{
+            //    var ErrorMessage = exception switch
+            //    {
+            //        ApiRequestException apiRequestException
+            //            => $"Telegram API Error:\n[{apiRequestException.ErrorCode}]\n{apiRequestException.Message}",
+            //        _ => exception.ToString()
+            //    };
+
+            //    Console.WriteLine(ErrorMessage);
+            //    return Task.CompletedTask;
+            //}
+            #endregion
+
+            async void UpdateHandler(object sender, UpdateEventArgs e)
             {
-                
+
                 //if update type is message, then work with message data
-                if (update.Type == UpdateType.Message)
+                if (e.Update.Type == UpdateType.Message)
                 {
                     // if message is a text, handle it
-                    if (update.Message.Type == MessageType.Text)
+                    if (e.Update.Message.Type == MessageType.Text)
                     {
                         //just cosmetic output to console
-                        var chatId = update.Message.Chat.Id;
-                        var messageText = update.Message.Text;
-                        Console.WriteLine($"Received a '{messageText}' message in chat {chatId}. By {update.Message.From.Username}");
-                        
+                        var chatId = e.Update.Message.Chat.Id;
+                        var messageText = e.Update.Message.Text;
+                        Console.WriteLine($"Received a '{messageText}' message in chat {chatId}. By {e.Update.Message.From.Username}");
+
                         //define if text message is a command
-                        await TextOptionsAsync(botClient, update, cancellationToken);
+                        await TextOptionsAsync(telegramBot, e.Update);
                     }
                     else
                     {
                         //if message type != text, try to donwload it
-                        await FileDownloaderHandlerAsync(botClient, update, cancellationToken, path, emojis, IsMenuButtonSelected);
+                        await FileDownloaderHandlerAsync(telegramBot, e.Update, path, emojis, IsMenuButtonSelected);
                     }
-                    
+
                 }
                 //if update type is CallbackQuery 
-                if (update.Type == UpdateType.CallbackQuery)
+                if (e.Update.Type == UpdateType.CallbackQuery)
                 {
                     //define CallBackData 
-                    string fileToUpload = update.CallbackQuery.Data;
+                    string fileToUpload = e.Update.CallbackQuery.Data;
                     Console.WriteLine(fileToUpload);
 
                     //upload files based on CallBack Data
-                    await UploadChoosenFileAsync(fileToUpload, path, (TelegramBotClient)botClient, update);
+                    await UploadChoosenFileAsync(fileToUpload, path, telegramBot, e.Update);
                 }
             }
 
-            Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
-            {
-                var ErrorMessage = exception switch
-                {
-                    ApiRequestException apiRequestException
-                        => $"Telegram API Error:\n[{apiRequestException.ErrorCode}]\n{apiRequestException.Message}",
-                    _ => exception.ToString()
-                };
-
-                Console.WriteLine(ErrorMessage);
-                return Task.CompletedTask;
-            }
-
             //Task to handle text command
-            async Task TextOptionsAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
+            async Task TextOptionsAsync(ITelegramBotClient botClient, Update update)
             {
                 var messageText = update.Message.Text;
                 // handle text form message
@@ -130,41 +163,42 @@ namespace Telegram_Bot
                     //case to send greetigs to user
                     case "/start":
                         {
-                            await DescriprionStartAsync(botClient, update, cancellationToken, keyboards["startButtons"], emojis);
+                            await DescriprionStartAsync(botClient, update, keyboards["startButtons"], emojis);
                             IsMenuButtonSelected = false;
                             break;
                         }
                     //case to send descriptions of functions which bot can process
                     case "/menu":
                         {
-                            await MenuDescriptionAsync(botClient, update, cancellationToken, keyboards["menuButtons"], emojis, path);
+                            await MenuDescriptionAsync(botClient, update, keyboards["menuButtons"], emojis, path);
                             IsMenuButtonSelected = true;
                             break;
                         }
                     //case to send info about
                     case "/info":
                         {
-                            await botClient.SendTextMessageAsync(update.Message.Chat.Id, "test file-trading bot", cancellationToken: cancellationToken);
+                            await botClient.SendTextMessageAsync(update.Message.Chat.Id, "test file-trading bot");
                             IsMenuButtonSelected = false;
                             break;
                         }
                     //case to send list of files, this command could be invoke in /menu from keyboard button
                     case "I want to know, which files are already in the bot's storage":
                         {
-                            await SendListOfFilesAsync(path, (TelegramBotClient)botClient, update, cancellationToken, emojis);
+                            await SendListOfFilesAsync(path, (TelegramBotClient)botClient, update, emojis);
                             break;
                         }
                     default:
                         Message defaultMessage = await botClient.SendTextMessageAsync(update.Message.Chat.Id, "I dont understand your commands" + emojis["hmmEmoji"] + ".\n Use keyboard buttons to navigate!" +
-                            emojis["coolMan"], cancellationToken: cancellationToken);
-                        defaultMessage = await botClient.SendStickerAsync(update.Message.Chat.Id, sticker: "CAACAgIAAxkBAAEDy3Vh-w1UvK764n4JWmM-v2e9rndxLQAC6BUAAiMlyUtQqGgG1fAXAAEjBA", cancellationToken: cancellationToken);
+                            emojis["coolMan"]);
+                        defaultMessage = await botClient.SendStickerAsync(update.Message.Chat.Id, sticker: "CAACAgIAAxkBAAEDy3Vh-w1UvK764n4JWmM-v2e9rndxLQAC6BUAAiMlyUtQqGgG1fAXAAEjBA");
                         break;
-                }               
+                }
             }
 
-            
         }
 
+       
+        
         /// <summary>
         /// method to initialize keyboards
         /// </summary>
@@ -263,13 +297,13 @@ namespace Telegram_Bot
         /// <param name="keyboard"></param>
         /// <param name="emojis"></param>
         /// <returns></returns>
-        static async Task DescriprionStartAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken, ReplyKeyboardMarkup keyboard, Dictionary<string,string> emojis)
+        static async Task DescriprionStartAsync(ITelegramBotClient botClient, Update update, ReplyKeyboardMarkup keyboard, Dictionary<string,string> emojis)
         {
             string startDesription = "\tWelcome to the training bot!" + emojis["checkMark"] + "\nDescription of Bot Commands below" + emojis["pen"] +
                 "\n/start - say hi to bot and view this message" + emojis["pen"] +
                 "\n/menu - show command keyboard" + emojis["pen"] + "\n/info - show info about this bot" + emojis["pen"];
 
-            Message DescriptionMessage = await botClient.SendTextMessageAsync(update.Message.Chat.Id, startDesription, replyMarkup: keyboard, cancellationToken: cancellationToken);
+            Message DescriptionMessage = await botClient.SendTextMessageAsync(update.Message.Chat.Id, startDesription, replyMarkup: keyboard);
         }
 
 
@@ -283,7 +317,7 @@ namespace Telegram_Bot
         /// <param name="emojis"></param>
         /// <param name="Path"></param>
         /// <returns></returns>
-        static async Task MenuDescriptionAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken, ReplyKeyboardMarkup keyboard,  Dictionary<string,string> emojis, string Path)
+        static async Task MenuDescriptionAsync(ITelegramBotClient botClient, Update update, ReplyKeyboardMarkup keyboard,  Dictionary<string,string> emojis, string Path)
         {
             string descriptionStr = $"\tOn this page you can choose following functions{emojis["bicycleMan"]}\n" +
                 $"You can store the following file types:\n{emojis["photo"]} Photos!\n" +
@@ -294,7 +328,7 @@ namespace Telegram_Bot
                     $"{emojis["bicycleMan"]} Get the names of files from bot's storage{emojis["bicycleMan"]}\n" +
                 $"{emojis["bicycleMan"]}Download the file from storage. To begin this operations check the existing files {emojis["bicycleMan"]}";
 
-            Message MenuDescr = await botClient.SendTextMessageAsync(update.Message.Chat.Id, descriptionStr, replyMarkup: keyboard, cancellationToken: cancellationToken);
+            Message MenuDescr = await botClient.SendTextMessageAsync(update.Message.Chat.Id, descriptionStr, replyMarkup: keyboard);
             
         }
 
@@ -310,7 +344,7 @@ namespace Telegram_Bot
         /// <param name="emojis"></param>
         /// <param name="IsMenuButtonSelected"></param>
         /// <returns></returns>
-        static async Task FileDownloaderHandlerAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken, string Path, Dictionary<string, string> emojis, bool IsMenuButtonSelected)
+        static async Task FileDownloaderHandlerAsync(ITelegramBotClient botClient, Update update, string Path, Dictionary<string, string> emojis, bool IsMenuButtonSelected)
         {
             //all supported message types
             if (update.Message.Type == MessageType.Photo || update.Message.Type == MessageType.Video || update.Message.Type == MessageType.VideoNote || update.Message.Type == MessageType.Voice || update.Message.Type == MessageType.Document || update.Message.Type == MessageType.Audio)
@@ -370,7 +404,7 @@ namespace Telegram_Bot
                         }      
                 }
                 Console.WriteLine($"Download the file from  {update.Message.Chat.Username} {update.Message.Chat.Id} - {update.Message.Type}");
-                Message message = await botClient.SendTextMessageAsync(update.Message.Chat.Id, $"I download the {update.Message.Type}" + emojis["pen"], cancellationToken: cancellationToken);
+                Message message = await botClient.SendTextMessageAsync(update.Message.Chat.Id, $"I download the {update.Message.Type}" + emojis["pen"]);
             }
             else
             {
@@ -379,7 +413,7 @@ namespace Telegram_Bot
                     $"{emojis["document"]} Documents!\n" +
                     $"{emojis["audio"]} Audio\n " +
                     $"{emojis["video"]} Video and VideoNotes\n" +
-                    $"{emojis["voiceMessage"]} VoiceMessage\n", cancellationToken: cancellationToken);
+                    $"{emojis["voiceMessage"]} VoiceMessage\n");
             }
 
 
@@ -410,14 +444,14 @@ namespace Telegram_Bot
         /// <param name="cancellationToken"></param>
         /// <param name="emojis"></param>
         /// <returns></returns>
-        static async Task SendListOfFilesAsync(string path, TelegramBotClient bot, Update update, CancellationToken cancellationToken, Dictionary<string,string> emojis)
+        static async Task SendListOfFilesAsync(string path, TelegramBotClient bot, Update update, Dictionary<string,string> emojis)
         {
             //get files
             Dictionary<string, FileType> filesInPath = GetFileExtension(path);
 
             if (filesInPath.Count == 0)
             {
-                _ = await bot.SendTextMessageAsync(update.Message.Chat.Id, $"I dont have any files in my storage {emojis["coolMan"]}", cancellationToken: cancellationToken);
+                _ = await bot.SendTextMessageAsync(update.Message.Chat.Id, $"I dont have any files in my storage {emojis["coolMan"]}");
             }
             else
             {
@@ -430,7 +464,7 @@ namespace Telegram_Bot
 
                 }
                 InlineKeyboardMarkup inlineKeyboard = SetInlineKeyboards(filesInPath, emojis);
-                _ = await bot.SendTextMessageAsync(update.Message.Chat.Id, listOfFiles, replyMarkup: inlineKeyboard, cancellationToken: cancellationToken);
+                _ = await bot.SendTextMessageAsync(update.Message.Chat.Id, listOfFiles, replyMarkup: inlineKeyboard);
 
             }
 
@@ -466,12 +500,12 @@ namespace Telegram_Bot
                     {
                         case 1:
                             {
-                                arrayOfButtons.Add(new[] { new InlineKeyboardButton(StringWithEmoji){ CallbackData = item.Key } }) ;
+                                arrayOfButtons.Add(new[] { new InlineKeyboardButton(){Text = StringWithEmoji, CallbackData = item.Key } }) ;
                                 break;
                             }
                         case 2:
                             {
-                                arrayOfButtons.Add(new[] { buttons[0], new InlineKeyboardButton(StringWithEmoji) { CallbackData = item.Key } });
+                                arrayOfButtons.Add(new[] { buttons[0], new InlineKeyboardButton() { Text = StringWithEmoji, CallbackData = item.Key } });
                                 break;
                             }
                         default:
@@ -482,8 +516,9 @@ namespace Telegram_Bot
                 {
                     if (k <= 3)
                     {
-                        buttons.Add(new InlineKeyboardButton(StringWithEmoji)
+                        buttons.Add(new InlineKeyboardButton()
                         {
+                            Text = StringWithEmoji,
                             CallbackData = item.Key
                         });
                         if (k == 3)

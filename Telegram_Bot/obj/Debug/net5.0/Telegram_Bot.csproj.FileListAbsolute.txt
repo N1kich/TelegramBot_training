@@ -17,5 +17,4 @@ C:\Users\funn1\source\repos\Telegram_Bot\Telegram_Bot\obj\Debug\net5.0\Telegram_
 C:\Users\funn1\source\repos\Telegram_Bot\Telegram_Bot\obj\Debug\net5.0\ref\Telegram_Bot.dll
 C:\Users\funn1\source\repos\Telegram_Bot\Telegram_Bot\obj\Debug\net5.0\Telegram_Bot.pdb
 C:\Users\funn1\source\repos\Telegram_Bot\Telegram_Bot\obj\Debug\net5.0\Telegram_Bot.genruntimeconfig.cache
-C:\Users\funn1\source\repos\Telegram_Bot\Telegram_Bot\bin\Debug\net5.0\System.Threading.Channels.dll
 C:\Users\funn1\source\repos\Telegram_Bot\Telegram_Bot\bin\Debug\net5.0\Telegram.Bot.Extensions.Polling.dll
